@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HeadPointer Lab — Hands-Free Pointing &amp; Smoothing Study</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="page-frame">
+    <div class="app-sheet">
+      <!-- Top Floating Navigation Bar -->
+      <header class="top-nav">
+        <div class="brand-mark">
+          <span class="brand-icon" aria-hidden="true">
+            <!-- Geometric modular pixel-grid reticle mark -->
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <rect x="2" y="2" width="5" height="5" rx="1" fill="#6BAF5D"/>
+              <rect x="13" y="2" width="5" height="5" rx="1" fill="#A7D8FF"/>
+              <rect x="2" y="13" width="5" height="5" rx="1" fill="#B57A4E"/>
+              <rect x="13" y="13" width="5" height="5" rx="1" fill="#6BAF5D"/>
+              <rect x="7.5" y="7.5" width="5" height="5" rx="1.2" fill="#1F2421"/>
+            </svg>
+          </span>
+          <div class="brand-text">
+            <strong>HeadPointer Lab</strong>
+            <span>CV &amp; HCI Smoothing Study</span>
+          </div>
+        </div>
+
+        <button id="mobile-menu-toggle" class="mobile-menu-btn">Menu</button>
+
+        <nav id="app-sidebar" class="nav-links" aria-label="Primary Navigation">
+          <button class="nav-btn active" data-nav-target="live" data-dwellable>Tracker</button>
+          <button class="nav-btn" data-nav-target="settings" data-dwellable>Settings</button>
+          <button class="nav-btn" data-nav-target="experiment" data-dwellable>Experiment</button>
+          <button class="nav-btn" data-nav-target="results" data-dwellable>Results &amp; Data</button>
+        </nav>
+
+        <div class="nav-actions">
+          <button id="btn-calibrate" class="btn btn-success" data-dwellable>Calibrate (C)</button>
+        </div>
+      </header>
+
+      <!-- Live Telemetry Strip -->
+      <div class="telemetry-bar">
+        <div class="topbar-group">
+          <span class="status-pill status-stopped" data-tracking-status-badge>Stopped</span>
+          <span class="mode-pill" data-active-mode-badge>One Euro Filter</span>
+        </div>
+        <div class="hud-readout">
+          <span>Jitter: <strong id="hud-jitter">0.0 px</strong></span>
+          <span>Speed: <strong id="hud-velocity">0 px/s</strong></span>
+          <span>Pos: <strong id="hud-coords">0, 0</strong></span>
+        </div>
+      </div>
+
+      <main class="content-wrap">
+        <!-- 1. TRACKER & COMPARE -->
+        <section id="section-live" class="app-section active">
+          <div class="hero-panel">
+            <div>
+              <p class="hero-eyebrow">Applied Vision &amp; HCI Instrument</p>
+              <h1 class="hero-title">Track.<br />Smooth.<br /><span class="accent-moss">Evaluate.</span></h1>
+              <p class="hero-sub" id="tracking-status-message">Local browser head-tracking with MediaPipe Face Landmarker. Compare Raw, Moving Average, and One Euro filtering in real time.</p>
+              <div class="btn-group" style="margin-bottom: 10px;">
+                <button id="btn-start-webcam" class="btn btn-primary" data-dwellable>Start Webcam &rarr;</button>
+                <button id="btn-start-sim" class="btn" data-dwellable>Simulated Mode</button>
+                <button id="btn-pause-tracking" class="btn" data-dwellable>Pause</button>
+                <button id="btn-stop-tracking" class="btn btn-danger" data-dwellable>Stop</button>
+              </div>
+              <div class="btn-group">
+                <button id="btn-recenter" class="btn" data-dwellable>Recenter (R)</button>
+                <label class="btn" style="gap: 8px; cursor: pointer;">
+                  <input id="toggle-webcam-preview" type="checkbox" checked />
+                  <span>Show Feed</span>
+                </label>
+              </div>
+              <div class="hero-shortcuts">
+                Shortcuts: <code>C</code> calibrate &middot; <code>R</code> recenter &middot; <code>Space</code> pause &middot; <code>Esc</code> cancel dwell
+              </div>
+            </div>
+
+            <div>
+              <div id="webcam-preview-box" class="webcam-box">
+                <div class="webcam-idle-hint" aria-hidden="true">
+                  <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+                    <rect x="4" y="4" width="8" height="8" rx="2" fill="#6BAF5D" fill-opacity="0.35"/>
+                    <rect x="24" y="4" width="8" height="8" rx="2" fill="#A7D8FF" fill-opacity="0.6"/>
+                    <rect x="4" y="24" width="8" height="8" rx="2" fill="#B57A4E" fill-opacity="0.35"/>
+                    <rect x="24" y="24" width="8" height="8" rx="2" fill="#6BAF5D" fill-opacity="0.35"/>
+                    <circle cx="18" cy="18" r="5" stroke="#4f8e42" stroke-width="2"/>
+                  </svg>
+                  <span>Local MediaPipe Feed</span>
+                  <small>Start Webcam or Simulated Mode</small>
+                </div>
+                <video id="webcam-video" autoplay playsinline muted></video>
+                <canvas id="webcam-overlay" width="480" height="360"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="card card-warm">
+            <h3>Smoothing Filter Pipeline</h3>
+            <div class="btn-group">
+              <button class="mode-card-btn" data-mode-select="raw" data-dwellable>
+                <strong>1. Raw Tracking</strong>
+                <span>Unfiltered nose coordinates (baseline)</span>
+              </button>
+              <button class="mode-card-btn" data-mode-select="moving_average" data-dwellable>
+                <strong>2. Moving Average</strong>
+                <span>6-frame sliding window mean</span>
+              </button>
+              <button class="mode-card-btn active" data-mode-select="one_euro" data-dwellable>
+                <strong>3. One Euro Filter</strong>
+                <span>Speed-adaptive low-pass cutoff</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">
+              <div>
+                <strong>Live Pointer Trajectory Trail</strong>
+                <span style="margin-left: 14px; color: var(--muted); font-size: 0.82rem; font-family: var(--font-mono);">
+                  RMS: <strong id="cmp-jitter-val">0.0 px</strong> &middot; Vel: <strong id="cmp-velocity-val">0 px/s</strong>
+                </span>
+              </div>
+              <button id="btn-clear-trail" class="btn" data-dwellable>Clear Trail</button>
+            </div>
+            <canvas id="comparison-trail-canvas" class="trail-canvas" width="900" height="230"></canvas>
+          </div>
+        </section>
+
+        <!-- 2. SETTINGS -->
+        <section id="section-settings" class="app-section">
+          <div class="section-header">
+            <h2>Tracking &amp; Filter Parameters</h2>
+            <p>All controls below support hands-free dwell selection (hold the head pointer on any slider track or dropdown for 1 second).</p>
+          </div>
+
+          <div class="grid-2">
+            <div class="card">
+              <h3>Coordinate Mapping</h3>
+              <div class="control-row">
+                <label for="select-landmark">Tracked Landmark</label>
+                <select id="select-landmark">
+                  <option value="1" selected>Nose Tip (Landmark #1)</option>
+                  <option value="168">Nose Bridge (Landmark #168)</option>
+                </select>
+              </div>
+              <div class="control-row">
+                <label>Sensitivity X <strong id="val-sens-x">2.4x</strong></label>
+                <input id="slider-sens-x" type="range" min="1.0" max="5.0" step="0.1" value="2.4" />
+              </div>
+              <div class="control-row">
+                <label>Sensitivity Y <strong id="val-sens-y">2.4x</strong></label>
+                <input id="slider-sens-y" type="range" min="1.0" max="5.0" step="0.1" value="2.4" />
+              </div>
+              <div class="control-row">
+                <label>Head Movement Range <strong id="val-range">22%</strong></label>
+                <input id="slider-range" type="range" min="0.10" max="0.40" step="0.01" value="0.22" />
+              </div>
+              <div class="control-row">
+                <label>Dead-Zone <strong id="val-deadzone">2.0</strong></label>
+                <input id="slider-deadzone" type="range" min="0" max="0.01" step="0.0005" value="0.002" />
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>Filters &amp; Dwell Selection</h3>
+              <div class="control-row">
+                <label>Moving Average Window <strong id="val-ma-window">6 frames</strong></label>
+                <input id="slider-ma-window" type="range" min="2" max="20" step="1" value="6" />
+              </div>
+              <div class="control-row">
+                <label>One Euro: minCutoff <strong id="val-oe-mincutoff">1.00 Hz</strong></label>
+                <input id="slider-oe-mincutoff" type="range" min="0.1" max="5.0" step="0.05" value="1.0" />
+              </div>
+              <div class="control-row">
+                <label>One Euro: beta <strong id="val-oe-beta">0.007</strong></label>
+                <input id="slider-oe-beta" type="range" min="0.0" max="0.1" step="0.001" value="0.007" />
+              </div>
+              <hr style="border: none; border-top: 1px solid var(--border); margin: 16px 0;" />
+              <div class="control-row">
+                <label>
+                  <span>Enable Dwell Selection</span>
+                  <input id="toggle-dwell-enabled" type="checkbox" checked />
+                </label>
+              </div>
+              <div class="control-row">
+                <label>Dwell Duration <strong id="val-dwell-ms">1000 ms</strong></label>
+                <input id="slider-dwell-ms" type="range" min="400" max="2200" step="50" value="1000" />
+              </div>
+              <div class="control-row">
+                <label>Post-Click Cooldown <strong id="val-dwell-delay">450 ms</strong></label>
+                <input id="slider-dwell-delay" type="range" min="100" max="1500" step="50" value="450" />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. FITTS' LAW EXPERIMENT -->
+        <section id="section-experiment" class="app-section">
+          <div class="section-header">
+            <h2>Fitts' Law Pointing Experiment</h2>
+            <p>Randomised within-subject evaluation across Raw Tracking, Moving Average, and One Euro Filter.</p>
+          </div>
+
+          <div id="exp-setup-panel" class="card">
+            <h3>Session Setup &amp; Informed Consent</h3>
+            <div class="callout">
+              <strong>Privacy Notice:</strong> Records only anonymous numerical metrics (Participant ID, condition, trial, target size/distance, selection time, misses, aborted attempts, comfort 1–5) locally in your browser. Zero video frames or personal identifiers are ever stored or uploaded.
+            </div>
+
+            <div class="grid-3">
+              <div class="control-row">
+                <label for="exp-participant-id">Anonymous Participant ID</label>
+                <input id="exp-participant-id" type="text" placeholder="e.g., P06" />
+              </div>
+              <div class="control-row">
+                <label for="exp-practice-count">Practice Trials / Mode</label>
+                <input id="exp-practice-count" type="number" min="1" max="6" value="3" />
+              </div>
+              <div class="control-row">
+                <label for="exp-formal-count">Recorded Trials / Mode</label>
+                <input id="exp-formal-count" type="number" min="3" max="18" value="6" />
+              </div>
+            </div>
+
+            <div class="control-row" style="margin-top: 10px;">
+              <label style="justify-content: flex-start; gap: 10px; cursor: pointer;">
+                <input id="exp-consent-checkbox" type="checkbox" />
+                <span>Participant consents to local storage of anonymous numerical pointing metrics.</span>
+              </label>
+            </div>
+
+            <button id="btn-start-experiment" class="btn btn-primary" data-dwellable>Begin Experiment &rarr;</button>
+          </div>
+
+          <div id="exp-arena-wrapper" class="hidden">
+            <div class="card">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div>
+                  <span id="exp-phase-badge" class="status-pill status-simulated">Ready</span>
+                  <strong id="exp-current-condition" style="margin-left: 10px;">Condition 1 of 3</strong>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <span id="exp-progress-text" style="font-size: 0.86rem; font-family: var(--font-mono); color: var(--muted);">Trial 1 of 6</span>
+                  <button id="btn-abort-experiment" class="btn btn-danger" data-no-dwell>Abort</button>
+                </div>
+              </div>
+              <div class="progress-track"><div id="exp-progress-bar" class="progress-fill"></div></div>
+            </div>
+
+            <div id="exp-comfort-panel" class="card hidden" style="text-align: center;">
+              <h3>Condition Comfort Rating (1–5)</h3>
+              <p>Rate pointer control comfort for the condition just completed (1 = Poor, 5 = Excellent).</p>
+              <div class="btn-group" style="justify-content: center; margin-top: 14px;">
+                <button class="btn practice-tile" data-comfort-score="1" data-dwellable>1</button>
+                <button class="btn practice-tile" data-comfort-score="2" data-dwellable>2</button>
+                <button class="btn practice-tile" data-comfort-score="3" data-dwellable>3</button>
+                <button class="btn practice-tile" data-comfort-score="4" data-dwellable>4</button>
+                <button class="btn btn-primary practice-tile" data-comfort-score="5" data-dwellable>5</button>
+              </div>
+            </div>
+
+            <div id="experiment-arena" class="experiment-arena" aria-label="Fitts Law Target Arena"></div>
+          </div>
+        </section>
+
+        <!-- 4. RESULTS & DATA -->
+        <section id="section-results" class="app-section">
+          <div class="section-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <h2>Results &amp; Data Export</h2>
+              <p id="export-row-count">0 recorded trial rows</p>
+            </div>
+            <div class="btn-group">
+              <button id="btn-export-trials-csv" class="btn btn-primary" data-dwellable>Export Trials CSV</button>
+              <button id="btn-export-summary-csv" class="btn" data-dwellable>Summary CSV</button>
+              <label class="btn" style="cursor: pointer;">
+                Import CSV
+                <input id="input-import-csv" type="file" accept=".csv,text/csv" class="hidden" />
+              </label>
+              <button id="btn-clear-all-data" class="btn btn-danger" data-dwellable>Clear Data</button>
+            </div>
+          </div>
+
+          <div class="grid-4" style="margin-bottom: 18px;">
+            <div class="kpi-card"><div class="kpi-label">Trials</div><div id="kpi-total-trials" class="kpi-value">0</div></div>
+            <div class="kpi-card"><div class="kpi-label">Participants</div><div id="kpi-participants" class="kpi-value">0</div></div>
+            <div class="kpi-card"><div class="kpi-label">Fastest Mode</div><div id="kpi-fastest-mode" class="kpi-value">—</div></div>
+            <div class="kpi-card"><div class="kpi-label">Lowest Miss Rate</div><div id="kpi-lowest-miss" class="kpi-value">—</div></div>
+          </div>
+
+          <div class="grid-2">
+            <div class="card">
+              <h3>Pointing Time (ms)</h3>
+              <div class="chart-box"><canvas id="chart-speed"></canvas></div>
+            </div>
+            <div class="card">
+              <h3>Accuracy &amp; Miss Rate (%)</h3>
+              <div class="chart-box"><canvas id="chart-accuracy"></canvas></div>
+            </div>
+            <div class="card">
+              <h3>Comfort Rating (1–5)</h3>
+              <div class="chart-box"><canvas id="chart-comfort"></canvas></div>
+            </div>
+            <div class="card">
+              <h3>Time by Target Size</h3>
+              <div class="chart-box"><canvas id="chart-size-distance"></canvas></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Condition Summary</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Mode</th>
+                    <th>Trials</th>
+                    <th>Mean</th>
+                    <th>Median</th>
+                    <th>SD</th>
+                    <th>Accuracy</th>
+                    <th>Miss Rate</th>
+                    <th>Comfort</th>
+                    <th>Throughput</th>
+                  </tr>
+                </thead>
+                <tbody id="summary-stats-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Paired Comparisons (Exploratory t-Test)</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Pair</th>
+                    <th>Paired N</th>
+                    <th>Mean Diff</th>
+                    <th>t</th>
+                    <th>p (approx)</th>
+                    <th>Note</th>
+                  </tr>
+                </thead>
+                <tbody id="paired-stats-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Per-Participant Breakdown</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Participant ID</th>
+                    <th>Stored Trials</th>
+                    <th>Raw Mean</th>
+                    <th>Moving Avg Mean</th>
+                    <th>One Euro Mean</th>
+                  </tr>
+                </thead>
+                <tbody id="participant-breakdown-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Recent Trials (Latest 25)</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Participant</th>
+                    <th>Condition</th>
+                    <th>Trial</th>
+                    <th>Size</th>
+                    <th>Distance</th>
+                    <th>Time</th>
+                    <th>Misses</th>
+                    <th>Aborted</th>
+                    <th>Comfort</th>
+                  </tr>
+                </thead>
+                <tbody id="export-preview-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="sheet-footer">
+        <span>100% local MediaPipe Face Landmarker processing — video never leaves your browser.</span>
+        <span>In-browser virtual pointer &middot; Fitts' Law Evaluation Suite</span>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Floating Custom Virtual Pointer with Dwell Progress Ring -->
+  <div id="virtual-pointer" class="virtual-pointer hidden" aria-hidden="true">
+    <svg width="48" height="48" viewBox="0 0 48 48">
+      <circle cx="24" cy="24" r="20" fill="none" stroke="rgba(31, 36, 33, 0.16)" stroke-width="3.5" />
+      <circle id="dwell-ring-progress" cx="24" cy="24" r="20" fill="none" stroke="#4f8e42" stroke-width="4" stroke-linecap="round" transform="rotate(-90 24 24)" />
+      <circle cx="24" cy="24" r="5" fill="#4f8e42" stroke="#ffffff" stroke-width="2" />
+    </svg>
+  </div>
+
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

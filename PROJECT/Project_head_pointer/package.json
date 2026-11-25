@@ -1,0 +1,20 @@
+{
+  "name": "head-controlled-pointer",
+  "version": "1.0.0",
+  "description": "Browser-based webcam head-controlled pointer using MediaPipe Face Landmarker with an integrated Fitts' Law smoothing evaluation study.",
+  "private": true,
+  "scripts": {
+    "start": "python3 -m http.server 8080"
+  },
+  "keywords": [
+    "computer-vision",
+    "mediapipe",
+    "hci",
+    "fitts-law",
+    "one-euro-filter",
+    "accessibility",
+    "head-tracking"
+  ],
+  "license": "MIT",
+  "type": "module"
+}
